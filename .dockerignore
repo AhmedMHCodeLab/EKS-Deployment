@@ -1,0 +1,9 @@
+.git
+.gitignore
+infra/
+venv/
+*.md
+Dockerfile
+.dockerignore
+.jshintrc
+.vscode/
