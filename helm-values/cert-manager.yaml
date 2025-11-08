@@ -1,0 +1,25 @@
+---
+# IRSA for Route53 DNS-01 challenges
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::590183934190:role/EKSDeployment-cluster-cert-manager"
+
+# Controller resources (for t3.small nodes)
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Webhook resources
+webhook:
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi

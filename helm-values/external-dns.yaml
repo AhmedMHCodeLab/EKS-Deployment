@@ -1,0 +1,44 @@
+---
+# ExternalDNS Configuration for EKS with Route53
+# Project: EKS-Deployment
+# Date: November 7, 2025
+
+# IRSA - IAM Role for Service Account (Route53 access)
+serviceAccount:
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::590183934190:role/EKSDeployment-cluster-external-dns"
+
+# DNS Provider (new format to avoid deprecation warning)
+provider:
+  name: aws
+
+# AWS-specific configuration
+aws:
+  region: us-east-1
+  zoneType: public
+
+# Route53 Zone ID (from Terraform)
+txtOwnerId: Z05803441P04TCJ0P5ELV
+
+# Domain filter - Only manage DNS for specific domain
+domainFilters:
+  - ahmedmhcodelab.click
+
+# DNS record management policy
+# upsert-only: Only create/update records (safer, won't delete)
+# sync: Full control - create, update, AND delete records
+policy: upsert-only
+
+# Sources to watch for DNS annotations
+sources:
+  - service
+  - ingress
+
+# Resource limits for t3.small nodes
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
