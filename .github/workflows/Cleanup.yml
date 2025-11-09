@@ -1,0 +1,36 @@
+
+name: Cleanup
+
+on:
+  workflow_dispatch:
+
+
+env:
+  AWS_REGION: us-east-1
+  EKS_CLUSTER: EKSDeployment-cluster
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Delete Kubernetes Resources
+        run: |
+          aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER }} --region ${{ env.AWS_REGION }}
+          kubectl delete ingress --all -n default
+          sleep 30
+          kubectl delete all --all -n default
+          helm uninstall ingress-nginx -n ingress-nginx || true
+          helm uninstall cert-manager -n cert-manager || true
+          helm uninstall external-dns -n external-dns || true
+      - name: Destroy Infrastructure
+        run: |
+          cd Terraform
+          terraform init
+          terraform destroy -auto-approve
