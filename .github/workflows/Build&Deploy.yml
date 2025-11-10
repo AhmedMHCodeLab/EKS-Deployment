@@ -18,7 +18,11 @@ jobs:
         with:
           directory: Terraform/
           framework: terraform
-          soft_fail: false
+          soft_fail: true
+      - name: Save Checkov Report
+        run: |
+          pip install checkov
+          checkov -d Terraform/ --output markdown > checkov-results.md
 
   build:
     name: Build & Scan
