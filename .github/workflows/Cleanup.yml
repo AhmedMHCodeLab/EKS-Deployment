@@ -20,17 +20,46 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-      - name: Delete Kubernetes Resources
+      - name: Delete All Kubernetes Resources
         run: |
           aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER }} --region ${{ env.AWS_REGION }}
-          kubectl delete ingress --all -n default
-          sleep 30
-          kubectl delete all --all -n default
-          helm uninstall ingress-nginx -n ingress-nginx || true
-          helm uninstall cert-manager -n cert-manager || true
-          helm uninstall external-dns -n external-dns || true
+          # Delete all resources in project-related namespaces only
+          for ns in argocd monitoring cert-manager external-dns ingress-nginx; do
+            kubectl delete all --all -n $ns || true
+            kubectl delete ingress --all -n $ns || true
+            kubectl delete pvc --all -n $ns || true
+            kubectl delete secret --all -n $ns || true
+            kubectl delete configmap --all -n $ns || true
+            kubectl delete service --all -n $ns || true
+            kubectl delete deployment --all -n $ns || true
+            kubectl delete statefulset --all -n $ns || true
+            kubectl delete daemonset --all -n $ns || true
+            kubectl delete replicaset --all -n $ns || true
+            kubectl delete pod --all -n $ns || true
+            kubectl delete clusterissuer --all -n $ns || true
+            helm uninstall $(helm list -n $ns -q) -n $ns || true
+            kubectl delete namespace $ns || true
+          done
+          # Delete CRDs
+          for crd in $(kubectl get crd --no-headers -o custom-columns=":metadata.name"); do
+            kubectl delete crd $crd || true
+          done
+          echo "All Kubernetes resources deleted."
       - name: Destroy Infrastructure
         run: |
           cd Terraform
           terraform init
           terraform destroy -auto-approve
+          echo "Terraform resources destroyed."
+
+      - name: AWS Resource Cleanup (ECR, S3)
+        run: |
+          # Delete ECR repositories created by Terraform
+          for repo in $(aws ecr describe-repositories --query 'repositories[].repositoryName' --output text); do
+            aws ecr delete-repository --repository-name $repo --force || true
+          done
+          # Delete S3 buckets created by Terraform
+          for bucket in $(aws s3api list-buckets --query 'Buckets[].Name' --output text); do
+            aws s3 rb s3://$bucket --force || true
+          done
+          echo "ECR repositories and S3 buckets deleted."
