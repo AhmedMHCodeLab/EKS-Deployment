@@ -148,20 +148,6 @@ variable "backend_bucket" {
   type        = string
 }
 
-variable "backend_key" {
-  description = "S3 key for Terraform backend state"
-  type        = string
-}
-
-variable "backend_region" {
-  description = "AWS region for Terraform backend state"
-  type        = string
-}
-
-variable "aws_account_id" {
-  description = "AWS Account ID"
-  type        = string
-}
 
 variable "oidc_provider_url" {
   description = "OIDC provider URL (without https://)"
