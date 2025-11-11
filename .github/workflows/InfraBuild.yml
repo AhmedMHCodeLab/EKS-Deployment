@@ -1,15 +1,35 @@
-name: Destroy Infrastructure
+name: Setup Infrastructure
 
 on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'Type DESTROY'
+        description: 'Type CREATE'
         required: true
 
 jobs:
-  destroy:
-    if: github.event.inputs.confirm == 'DESTROY'
+  terraform:
+    if: github.event.inputs.confirm == 'CREATE'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: hashicorp/setup-terraform@v3
+      
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      
+      - name: Apply Terraform
+        run: |
+          cd Terraform
+          terraform init
+          terraform apply -auto-approve
+
+  install-addons:
+    needs: terraform
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,23 +40,30 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
       
-      - uses: azure/setup-helm@v4
+      - uses: azure/setup-helm@v3
       
       - name: Update kubeconfig
         run: aws eks update-kubeconfig --name EKSDeployment-cluster --region us-east-1
       
-      - name: Cleanup Kubernetes resources
+      - name: Install Helm charts
         run: |
-          kubectl delete -f k8s/ || true
-          helm uninstall external-dns -n external-dns || true
-          helm uninstall cert-manager -n cert-manager || true
-          helm uninstall ingress-nginx -n ingress-nginx || true
-          sleep 60
+          helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+          helm repo add jetstack https://charts.jetstack.io
+          helm repo add external-dns https://kubernetes-sigs.github.io/external-dns/
+          helm repo update
+          
+          helm install ingress-nginx ingress-nginx/ingress-nginx \
+            -n ingress-nginx --create-namespace \
+            -f helm-values/nginx-ingress.yaml
+          
+          helm install cert-manager jetstack/cert-manager \
+            -n cert-manager --create-namespace \
+            --set crds.enabled=true \
+            -f helm-values/cert-manager.yaml
+          
+          helm install external-dns external-dns/external-dns \
+            -n external-dns --create-namespace \
+            -f helm-values/external-dns.yaml
       
-      - uses: hashicorp/setup-terraform@v3
-      
-      - name: Destroy Terraform
-        run: |
-          cd Terraform
-          terraform init
-          terraform destroy -auto-approve
+      - name: Apply ClusterIssuer
+        run: kubectl apply -f k8s/cluster-issuer-prod.yaml
