@@ -1,0 +1,42 @@
+name: Destroy Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type DESTROY'
+        required: true
+
+jobs:
+  destroy:
+    if: github.event.inputs.confirm == 'DESTROY'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      
+      - uses: azure/setup-helm@v4
+      
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name EKSDeployment-cluster --region us-east-1
+      
+      - name: Cleanup Kubernetes resources
+        run: |
+          kubectl delete -f k8s/ || true
+          helm uninstall external-dns -n external-dns || true
+          helm uninstall cert-manager -n cert-manager || true
+          helm uninstall ingress-nginx -n ingress-nginx || true
+          sleep 60
+      
+      - uses: hashicorp/setup-terraform@v3
+      
+      - name: Destroy Terraform
+        run: |
+          cd Terraform
+          terraform init
+          terraform destroy -auto-approve
