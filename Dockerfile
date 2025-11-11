@@ -1,7 +1,9 @@
-FROM nginx:1.25.3-alpine
+FROM nginx:1.25.3-alpine3.19
 
 WORKDIR /usr/share/nginx/html
-RUN rm -rf ./*
+RUN rm -rf ./* \
+	&& apk update \
+	&& apk upgrade
 
 COPY index.html .
 COPY js/ ./js/
