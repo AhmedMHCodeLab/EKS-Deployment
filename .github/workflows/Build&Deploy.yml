@@ -84,12 +84,16 @@ jobs:
       - name: Update kubeconfig
         run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER }} --region ${{ env.AWS_REGION }}
       
+      - name: Substitute image tag in deployment.yaml
+        run: |
+          sed "s/{{GITHUB_SHA}}/${{ github.sha }}/g" k8s/deployment.yaml > k8s/deployment.sub.yaml
+
       - name: Deploy to EKS
         run: |
           if kubectl get deployment game-2048 -n default 2>/dev/null; then
             kubectl set image deployment/game-2048 game-2048=${{ needs.build.outputs.image }} -n default
           else
-            kubectl apply -f k8s/
+            kubectl apply -f k8s/deployment.sub.yaml
           fi
           
           kubectl rollout status deployment/game-2048 -n default --timeout=5m
