@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://github.com/AhmedMHCodeLab/EKS-Deployment
     path: k8s
-    targetRevision: master
+    targetRevision: main
   destination:
     server: https://kubernetes.default.svc
     namespace: default

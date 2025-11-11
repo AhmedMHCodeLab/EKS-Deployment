@@ -4,17 +4,24 @@ metadata:
   name: argocd-server-ingress
   namespace: argocd
   annotations:
-    external-dns.alpha.kubernetes.io/hostname: argocd.ahmedmhcodelab.com
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    external-dns.alpha.kubernetes.io/hostname: argocd.ahmedmhcodelab.click
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
 spec:
   ingressClassName: nginx
+  tls:
+  - hosts:
+    - argocd.ahmedmhcodelab.click
+    secretName: argocd-tls
   rules:
-    - host: argocd.ahmedmhcodelab.com
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: argocd-server
-                port:
-                  number: 80
+  - host: argocd.ahmedmhcodelab.click
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: argocd-server
+            port:
+              number: 443

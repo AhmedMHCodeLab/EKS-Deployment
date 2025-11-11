@@ -1,5 +1,10 @@
 .git
 .gitignore
+.github/
+Terraform/
+argocd-apps/
+helm-values/
+k8s/
 infra/
 venv/
 *.md
@@ -7,3 +12,4 @@ Dockerfile
 .dockerignore
 .jshintrc
 .vscode/
+setup-backend.sh

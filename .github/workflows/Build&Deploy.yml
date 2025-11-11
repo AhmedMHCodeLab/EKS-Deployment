@@ -74,20 +74,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Update image tag in k8s/deployment.yaml
-        run: |
-          sed -i "s|image:.*|image: ${{ needs.build.outputs.image }}|" k8s/deployment.yaml
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Update kubeconfig
-        run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER }} --region ${{ env.AWS_REGION }}
+      - name: Update image tag in deployment
+        run: |
+          sed -i "s|image:.*eksdeployment-2048-game:.*|image: ${{ needs.build.outputs.image }}|" k8s/deployment.yaml
 
-      - name: Deploy to EKS
-        run: kubectl apply -f k8s/deployment.yaml
+      - name: Commit and push to trigger ArgoCD
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add k8s/deployment.yaml
+          git diff --staged --quiet || git commit -m "chore: update image to ${{ github.sha }}"
+          git push

@@ -9,9 +9,9 @@
 
 terraform {
   backend "s3" {
-    bucket         = "eks-deployment-terraform-state-1762415740"
-    key            = "eks-deployment/terraform.tfstate"
-    region         = "us-east-1"
+  bucket         = var.backend_bucket
+  key            = var.backend_key
+  region         = var.backend_region
     encrypt        = true
      dynamodb_table = "eks-deployment-terraform-lock"
   }

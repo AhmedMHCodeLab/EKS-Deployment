@@ -1,26 +1,25 @@
----
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: game-2048-ingress
-  namespace: default
+  name: grafana-ingress
+  namespace: monitoring
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    external-dns.alpha.kubernetes.io/hostname: eks.ahmedmhcodelab.click
+    external-dns.alpha.kubernetes.io/hostname: grafana.ahmedmhcodelab.click
 spec:
   ingressClassName: nginx
   tls:
   - hosts:
-    - eks.ahmedmhcodelab.click
-    secretName: game-2048-tls
+    - grafana.ahmedmhcodelab.click
+    secretName: grafana-tls
   rules:
-  - host: eks.ahmedmhcodelab.click
+  - host: grafana.ahmedmhcodelab.click
     http:
       paths:
       - path: /
         pathType: Prefix
         backend:
           service:
-            name: game-2048-service
+            name: prometheus-grafana
             port:
               number: 80

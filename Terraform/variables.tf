@@ -143,6 +143,21 @@ variable "route53_zone_id" {
   type        = string
 }
 
+variable "backend_bucket" {
+  description = "S3 bucket for Terraform backend state"
+  type        = string
+}
+
+variable "backend_key" {
+  description = "S3 key for Terraform backend state"
+  type        = string
+}
+
+variable "backend_region" {
+  description = "AWS region for Terraform backend state"
+  type        = string
+}
+
 variable "aws_account_id" {
   description = "AWS Account ID"
   type        = string

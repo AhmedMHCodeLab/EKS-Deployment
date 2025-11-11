@@ -21,17 +21,11 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
+      
       - name: Apply Terraform
-        env:
-          TF_BACKEND_BUCKET: ${{ secrets.TF_BACKEND_BUCKET }}
-          TF_BACKEND_KEY: ${{ secrets.TF_BACKEND_KEY }}
-          TF_BACKEND_REGION: ${{ secrets.TF_BACKEND_REGION }}
         run: |
           cd Terraform
-          terraform init \
-            -backend-config="bucket=$TF_BACKEND_BUCKET" \
-            -backend-config="key=$TF_BACKEND_KEY" \
-            -backend-config="region=$TF_BACKEND_REGION"
+          terraform init
           terraform apply -auto-approve
 
   install-addons:

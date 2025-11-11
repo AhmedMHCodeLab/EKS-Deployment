@@ -2,8 +2,8 @@ FROM nginx:1.29.3-alpine3.22
 
 WORKDIR /usr/share/nginx/html
 RUN rm -rf ./* \
-	&& apk update \
-	&& apk upgrade
+    && apk update --no-cache \
+    && apk upgrade --no-cache
 
 COPY index.html .
 COPY js/ ./js/
