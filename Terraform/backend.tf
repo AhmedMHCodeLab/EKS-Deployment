@@ -13,6 +13,6 @@ terraform {
     key            = "eks-deployment/terraform.tfstate"
     region         = "us-east-1"
     encrypt        = true
-    dynamodb_table = "eks-deployment-terraform-lock"
+     dynamodb_table = "eks-deployment-terraform-lock"
   }
 }

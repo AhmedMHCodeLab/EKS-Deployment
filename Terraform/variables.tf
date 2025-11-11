@@ -142,3 +142,13 @@ variable "route53_zone_id" {
   description = "Route53 hosted zone ID"
   type        = string
 }
+
+variable "aws_account_id" {
+  description = "AWS Account ID"
+  type        = string
+}
+
+variable "oidc_provider_url" {
+  description = "OIDC provider URL (without https://)"
+  type        = string
+}

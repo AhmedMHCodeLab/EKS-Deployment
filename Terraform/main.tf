@@ -37,6 +37,9 @@ module "eks" {
 
   # Route53 Configuration
   route53_zone_id = var.route53_zone_id
+
+    aws_account_id   = var.aws_account_id
+    oidc_provider_url = var.oidc_provider_url
 }
 
 # ECR Module
