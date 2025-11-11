@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: game-2048
-        image: 590183934190.dkr.ecr.us-east-1.amazonaws.com/eksdeployment-2048-game:latest
+        image: 590183934190.dkr.ecr.us-east-1.amazonaws.com/eksdeployment-2048-game:{{GITHUB_SHA}}
         imagePullPolicy: Always
         ports:
         - containerPort: 80
