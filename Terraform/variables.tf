@@ -38,6 +38,11 @@ variable "availability_zones" {
   default     = ["us-east-1a", "us-east-1b"]
 }
 
+variable "aws_account_id" {
+  description = "AWS Account ID"
+  type        = string
+}
+
 # ============================================================================
 # VPC CONFIGURATION
 # ============================================================================
@@ -142,12 +147,6 @@ variable "route53_zone_id" {
   description = "Route53 hosted zone ID"
   type        = string
 }
-
-variable "backend_bucket" {
-  description = "S3 bucket for Terraform backend state"
-  type        = string
-}
-
 
 variable "oidc_provider_url" {
   description = "OIDC provider URL (without https://)"
