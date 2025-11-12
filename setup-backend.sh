@@ -35,12 +35,17 @@ aws s3api put-public-access-block \
         BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
 
 echo "Creating DynamoDB table for state locking..."
-aws dynamodb create-table \
-    --table-name ${DYNAMODB_TABLE} \
-    --attribute-definitions AttributeName=LockID,AttributeType=S \
-    --key-schema AttributeName=LockID,KeyType=HASH \
-    --billing-mode PAY_PER_REQUEST \
-    --region ${AWS_REGION}
+if aws dynamodb describe-table --table-name ${DYNAMODB_TABLE} --region ${AWS_REGION} >/dev/null 2>&1; then
+    echo "DynamoDB table '${DYNAMODB_TABLE}' already exists. Skipping creation."
+else
+    aws dynamodb create-table \
+        --table-name ${DYNAMODB_TABLE} \
+        --attribute-definitions AttributeName=LockID,AttributeType=S \
+        --key-schema AttributeName=LockID,KeyType=HASH \
+        --billing-mode PAY_PER_REQUEST \
+        --region ${AWS_REGION}
+    echo "DynamoDB table created successfully."
+fi
 
 echo "=========================================="
 echo "Backend infrastructure created!"
