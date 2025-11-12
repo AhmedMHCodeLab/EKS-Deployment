@@ -51,7 +51,7 @@ jobs:
       - name: Destroy Terraform infrastructure
         run: |
           cd Terraform
-          terraform init
+          terraform init -reconfigure
           terraform destroy -auto-approve
       
       - name: Clean ECR images only (keep repository)

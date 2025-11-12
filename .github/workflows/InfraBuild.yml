@@ -25,7 +25,7 @@ jobs:
       - name: Apply Terraform
         run: |
           cd Terraform
-          terraform init
+          terraform init -reconfigure
           terraform apply -auto-approve
 
   install-addons:
@@ -51,17 +51,17 @@ jobs:
           helm repo add jetstack https://charts.jetstack.io
           helm repo add external-dns https://kubernetes-sigs.github.io/external-dns/
           helm repo update
-          
-          helm install ingress-nginx ingress-nginx/ingress-nginx \
+
+          helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
             -n ingress-nginx --create-namespace \
             -f helm-values/nginx-ingress.yaml
-          
-          helm install cert-manager jetstack/cert-manager \
+
+          helm upgrade --install cert-manager jetstack/cert-manager \
             -n cert-manager --create-namespace \
             --set crds.enabled=true \
             -f helm-values/cert-manager.yaml
-          
-          helm install external-dns external-dns/external-dns \
+
+          helm upgrade --install external-dns external-dns/external-dns \
             -n external-dns --create-namespace \
             -f helm-values/external-dns.yaml
       
