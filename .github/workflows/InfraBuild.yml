@@ -45,25 +45,127 @@ jobs:
       - name: Update kubeconfig
         run: aws eks update-kubeconfig --name EKSDeployment-cluster --region us-east-1
       
-      - name: Install Helm charts
+      - name: Install Core Infrastructure
         run: |
+          echo "Adding Helm repositories..."
           helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
           helm repo add jetstack https://charts.jetstack.io
           helm repo add external-dns https://kubernetes-sigs.github.io/external-dns/
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
           helm repo update
 
+          echo "Installing NGINX Ingress Controller..."
           helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
             -n ingress-nginx --create-namespace \
-            -f helm-values/nginx-ingress.yaml
+            -f helm-values/nginx-ingress.yaml \
+            --wait --timeout 5m
 
+          echo "Installing Cert-Manager..."
           helm upgrade --install cert-manager jetstack/cert-manager \
             -n cert-manager --create-namespace \
             --set crds.enabled=true \
-            -f helm-values/cert-manager.yaml
+            -f helm-values/cert-manager.yaml \
+            --wait --timeout 5m
 
+          echo "Installing ExternalDNS..."
           helm upgrade --install external-dns external-dns/external-dns \
             -n external-dns --create-namespace \
-            -f helm-values/external-dns.yaml
+            -f helm-values/external-dns.yaml \
+            --wait --timeout 5m
       
       - name: Apply ClusterIssuer
-        run: kubectl apply -f k8s/cluster-issuer-prod.yaml
+        run: |
+          echo "Applying Let's Encrypt ClusterIssuer..."
+          kubectl apply -f k8s/cluster-issuer-prod.yaml
+          sleep 10
+      
+      - name: Install Monitoring Stack
+        run: |
+          echo "Installing Prometheus + Grafana..."
+          helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
+            -n monitoring --create-namespace \
+            --wait --timeout 10m
+          
+          echo "Monitoring stack installed successfully!"
+      
+      - name: Install ArgoCD
+        run: |
+          echo "Installing ArgoCD..."
+          kubectl create namespace argocd || true
+          kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+          
+          echo "Waiting for ArgoCD to be ready..."
+          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=argocd-server -n argocd --timeout=5m || true
+          
+          echo "ArgoCD installed successfully!"
+      
+      - name: Configure Ingresses
+        run: |
+          echo "Applying ArgoCD ingress..."
+          kubectl apply -f argocd-apps/argocd-ingress.yaml
+          
+          echo "Applying Grafana ingress..."
+          kubectl apply -f k8s/grafana-ingress.yaml
+          
+          echo "Applying Prometheus ingress..."
+          kubectl apply -f k8s/prometheus-ingress.yaml
+          
+          echo "Waiting for certificate issuance (60 seconds)..."
+          sleep 60
+      
+      - name: Create ArgoCD Application
+        run: |
+          echo "Creating ArgoCD application for game-2048..."
+          kubectl apply -f argocd-apps/game-2048-app.yaml
+          
+          echo "ArgoCD application created!"
+      
+      - name: Display Access Information
+        run: |
+          echo ""
+          echo "═══════════════════════════════════════════════════════════"
+          echo "  🎉 INFRASTRUCTURE SETUP COMPLETE! 🎉"
+          echo "═══════════════════════════════════════════════════════════"
+          echo ""
+          echo "📋 CERTIFICATE STATUS:"
+          kubectl get certificate -A || echo "Certificates still being issued..."
+          echo ""
+          echo "───────────────────────────────────────────────────────────"
+          echo "🌐 ACCESS URLs:"
+          echo "───────────────────────────────────────────────────────────"
+          echo ""
+          echo "🎮 Game (2048):"
+          echo "   https://eks.ahmedmhcodelab.click"
+          echo ""
+          echo "📊 ArgoCD (GitOps Dashboard):"
+          echo "   URL:      https://argocd.ahmedmhcodelab.click"
+          echo "   Username: admin"
+          echo -n "   Password: "
+          kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" 2>/dev/null | base64 -d || echo "Still starting..."
+          echo ""
+          echo ""
+          echo "📈 Grafana (Monitoring Dashboard):"
+          echo "   URL:      https://grafana.ahmedmhcodelab.click"
+          echo "   Username: admin"
+          echo -n "   Password: "
+          kubectl get secret -n monitoring prometheus-grafana -o jsonpath="{.data.admin-password}" 2>/dev/null | base64 -d || echo "Still starting..."
+          echo ""
+          echo ""
+          echo "🔍 Prometheus (Metrics):"
+          echo "   URL: https://prometheus.ahmedmhcodelab.click"
+          echo "   (No authentication required)"
+          echo ""
+          echo "───────────────────────────────────────────────────────────"
+          echo "⏰ IMPORTANT NOTES:"
+          echo "───────────────────────────────────────────────────────────"
+          echo "• Wait 2-3 minutes for all SSL certificates to be issued"
+          echo "• All services are accessible via HTTPS with valid certs"
+          echo "• ArgoCD will auto-deploy your application from Git"
+          echo ""
+          echo "💡 To check certificate status later, run:"
+          echo "   kubectl get certificate -A"
+          echo ""
+          echo "💡 To get credentials again, run:"
+          echo "   ./scripts/get-credentials.sh"
+          echo ""
+          echo "═══════════════════════════════════════════════════════════"

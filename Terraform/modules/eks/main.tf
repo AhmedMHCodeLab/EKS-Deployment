@@ -40,11 +40,6 @@ resource "aws_eks_node_group" "this" {
   capacity_type  = var.node_capacity_type
   disk_size      = var.node_disk_size
 
-  # Explicitly attach the node security group
-  remote_access {
-    source_security_group_ids = [aws_security_group.nodes.id]
-  }
-
   depends_on = [
     aws_iam_role_policy_attachment.eks_worker_node_policy,
     aws_iam_role_policy_attachment.eks_cni_policy,
