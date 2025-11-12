@@ -11,7 +11,7 @@ resource "aws_eks_cluster" "this" {
     security_group_ids      = [aws_security_group.cluster.id]
   }
 
-  enabled_cluster_log_types = ["api", "audit", "authenticator"]
+    enabled_cluster_log_types = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
 
   depends_on = [
     aws_iam_role_policy_attachment.cluster_AmazonEKSClusterPolicy,
@@ -39,6 +39,11 @@ resource "aws_eks_node_group" "this" {
   instance_types = var.node_instance_types
   capacity_type  = var.node_capacity_type
   disk_size      = var.node_disk_size
+
+  # Explicitly attach the node security group
+  remote_access {
+    source_security_group_ids = [aws_security_group.nodes.id]
+  }
 
   depends_on = [
     aws_iam_role_policy_attachment.eks_worker_node_policy,
