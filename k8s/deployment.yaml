@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: game-2048
-        image: 590183934190.dkr.ecr.us-east-1.amazonaws.com/eksdeployment-2048-game:c241c416729067dff643d4712dd36d937fddfac7
+        image: 590183934190.dkr.ecr.us-east-1.amazonaws.com/eksdeployment-2048-game:9bb31bac8f69fd80103645a9cdaf0ddd433aabd1
         imagePullPolicy: Always
         ports:
         - containerPort: 80
