@@ -10,11 +10,10 @@ module "vpc" {
   public_subnets  = [for k, v in var.availability_zones : cidrsubnet(var.vpc_cidr, 4, k)]
 
   enable_nat_gateway   = true
-  single_nat_gateway   = false # HA setup
+  single_nat_gateway   = false
   enable_dns_hostnames = true
   enable_dns_support   = true
 
-  # EKS requires these tags!
   public_subnet_tags = {
     "kubernetes.io/role/elb" = 1
   }

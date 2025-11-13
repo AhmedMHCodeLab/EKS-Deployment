@@ -1,6 +1,4 @@
 ---
-# ExternalDNS Configuration for EKS with Route53
-
 serviceAccount:
   annotations:
     eks.amazonaws.com/role-arn: "arn:aws:iam::590183934190:role/EKSDeployment-cluster-external-dns"

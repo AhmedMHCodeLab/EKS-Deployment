@@ -1,8 +1,3 @@
-# Why S3 + DynamoDB?
-# - S3: Stores state file (with versioning for rollback)
-# - DynamoDB: Provides state locking (prevents concurrent modifications)
-# - Encryption: State file contains sensitive data (passwords, keys)
-
 terraform {
   backend "s3" {
     bucket         = "eks-deployment-terraform-state-1762963376"

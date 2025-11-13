@@ -1,35 +1,15 @@
-# NGINX Ingress Controller - Custom Values
-# Project: EKS-Deployment
-# Date: November 7, 2025
-
 controller:
-  # Set replica count to 2 for high availability
-  # Default: 1
-  # Path: controller.replicaCount
   replicaCount: 2
-  
-  # Enable Prometheus metrics
-  # Default: false
-  # Path: controller.metrics.enabled
+
   metrics:
     enabled: true
     service:
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "10254"
-  
-  # Service configuration
+
   service:
-    # Type is already LoadBalancer by default, but being explicit
     type: LoadBalancer
-    
-    # AWS-specific annotations for Network Load Balancer
-    # Default: {} (empty)
-    # Path: controller.service.annotations
     annotations:
-      # Explicitly request NLB (Network Load Balancer)
       service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
-      
-      # Translation: Hey AWS, when you create this NLB, enable cross-zone load balancing. 
-      #I want traffic distributed evenly across ALL availability zones, not just within each zone.
       service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"

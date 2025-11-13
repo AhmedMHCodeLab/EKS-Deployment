@@ -1,7 +1,3 @@
-# ============================================================================
-# EKS CLUSTER SECURITY GROUP
-# ============================================================================
-
 resource "aws_security_group" "cluster" {
   name        = "${var.cluster_name}-cluster-sg"
   description = "Security group for EKS cluster control plane"
@@ -16,7 +12,6 @@ resource "aws_security_group" "cluster" {
   )
 }
 
-# Allow HTTPS traffic from worker nodes to control plane
 resource "aws_security_group_rule" "cluster_ingress_nodes" {
   description              = "Allow nodes to communicate with the cluster API Server"
   from_port                = 443
@@ -27,7 +22,6 @@ resource "aws_security_group_rule" "cluster_ingress_nodes" {
   type                     = "ingress"
 }
 
-# Allow all outbound traffic from control plane
 resource "aws_security_group_rule" "cluster_egress_internet" {
   description       = "Allow cluster egress access to the Internet"
   from_port         = 0
@@ -37,10 +31,6 @@ resource "aws_security_group_rule" "cluster_egress_internet" {
   cidr_blocks       = ["0.0.0.0/0"]
   type              = "egress"
 }
-
-# ============================================================================
-# EKS WORKER NODES SECURITY GROUP
-# ============================================================================
 
 resource "aws_security_group" "nodes" {
   name_prefix = "${var.cluster_name}-nodes-"
@@ -57,7 +47,6 @@ resource "aws_security_group" "nodes" {
   )
 }
 
-# Allow nodes to communicate with each other (self-referencing)
 resource "aws_security_group_rule" "nodes_ingress_self" {
   description              = "Allow node to communicate with each other"
   from_port                = 0
@@ -68,7 +57,6 @@ resource "aws_security_group_rule" "nodes_ingress_self" {
   type                     = "ingress"
 }
 
-# Allow control plane to communicate with worker nodes (kubelet)
 resource "aws_security_group_rule" "nodes_ingress_cluster" {
   description              = "Allow worker Kubelets and pods to receive communication from the cluster control plane"
   from_port                = 1025
@@ -79,7 +67,6 @@ resource "aws_security_group_rule" "nodes_ingress_cluster" {
   type                     = "ingress"
 }
 
-# Allow control plane to communicate with worker nodes (kubelet API)
 resource "aws_security_group_rule" "nodes_ingress_cluster_kubelet" {
   description              = "Allow pods running extension API servers on port 443 to receive communication from cluster control plane"
   from_port                = 443
@@ -90,7 +77,6 @@ resource "aws_security_group_rule" "nodes_ingress_cluster_kubelet" {
   type                     = "ingress"
 }
 
-# Allow HTTP traffic from load balancers
 resource "aws_security_group_rule" "nodes_ingress_http" {
   description       = "Allow HTTP traffic from load balancers"
   from_port         = 80
@@ -101,7 +87,6 @@ resource "aws_security_group_rule" "nodes_ingress_http" {
   type              = "ingress"
 }
 
-# Allow HTTPS traffic from load balancers
 resource "aws_security_group_rule" "nodes_ingress_https" {
   description       = "Allow HTTPS traffic from load balancers"
   from_port         = 443
@@ -112,7 +97,6 @@ resource "aws_security_group_rule" "nodes_ingress_https" {
   type              = "ingress"
 }
 
-# Allow NodePort range traffic from load balancers
 resource "aws_security_group_rule" "nodes_ingress_nodeport" {
   description       = "Allow NodePort services to be accessible from load balancers"
   from_port         = 30000
@@ -123,7 +107,6 @@ resource "aws_security_group_rule" "nodes_ingress_nodeport" {
   type              = "ingress"
 }
 
-# Allow all outbound traffic from worker nodes
 resource "aws_security_group_rule" "nodes_egress_internet" {
   description       = "Allow all outbound traffic from worker nodes"
   from_port         = 0

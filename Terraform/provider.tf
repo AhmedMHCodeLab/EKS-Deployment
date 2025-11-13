@@ -1,6 +1,3 @@
-# Provider configuration
-# Defines which cloud provider and versions to use
-
 terraform {
   required_version = ">= 1.0"
 
@@ -18,9 +15,6 @@ terraform {
 
 provider "aws" {
   region = var.aws_region
-
-  # Default tags applied to ALL resources
-  # Makes cost tracking and resource management easier
   default_tags {
     tags = {
       Project     = var.project_name

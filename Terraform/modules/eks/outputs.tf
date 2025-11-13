@@ -33,13 +33,11 @@ output "node_group_status" {
   value       = aws_eks_node_group.this.status
 }
 
-# OIDC Provider Outputs
 output "oidc_provider_arn" {
   description = "ARN of the OIDC Provider"
   value       = aws_iam_openid_connect_provider.cluster.arn
 }
 
-# IRSA Role Outputs
 output "external_dns_role_arn" {
   description = "IAM role ARN for ExternalDNS"
   value       = module.external_dns_irsa.iam_role_arn

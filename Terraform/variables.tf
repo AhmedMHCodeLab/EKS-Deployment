@@ -1,7 +1,3 @@
-# ============================================================================
-# PROJECT VARIABLES
-# ============================================================================
-
 variable "project_name" {
   description = "Project name used for resource naming and tagging"
   type        = string
@@ -22,10 +18,6 @@ variable "owner" {
   type        = string
 }
 
-# ============================================================================
-# AWS CONFIGURATION
-# ============================================================================
-
 variable "aws_region" {
   description = "AWS region to deploy resources"
   type        = string
@@ -43,10 +35,6 @@ variable "aws_account_id" {
   type        = string
 }
 
-# ============================================================================
-# VPC CONFIGURATION
-# ============================================================================
-
 variable "vpc_cidr" {
   description = "CIDR block for VPC"
   type        = string
@@ -57,19 +45,12 @@ variable "vpc_cidr" {
   }
 }
 
-# ============================================================================
-# TAGS
-# ============================================================================
-
 variable "tags" {
   description = "Additional tags to apply to all resources"
   type        = map(string)
   default     = {}
 }
 
-# ============================================================================
-# FUTURE: EKS CLUSTER VARIABLES (uncomment when adding EKS resources)
-# ============================================================================
 variable "cluster_name" {
   description = "The name of the EKS cluster"
   type        = string
@@ -94,10 +75,6 @@ variable "cluster_endpoint_public_access_cidrs" {
   description = "List of CIDR blocks allowed to access the EKS cluster endpoint"
   type        = list(string)
 }
-
-# ============================================================================
-# EKS NODE GROUP CONFIGURATION
-# ============================================================================
 
 variable "node_instance_types" {
   description = "List of instance types for worker nodes"
@@ -138,10 +115,6 @@ variable "node_disk_size" {
   type        = number
   default     = 20
 }
-
-# ============================================================================
-# ROUTE53 CONFIGURATION
-# ============================================================================
 
 variable "route53_zone_id" {
   description = "Route53 hosted zone ID"

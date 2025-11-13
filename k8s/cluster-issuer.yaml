@@ -6,14 +6,11 @@ spec:
   acme:
     email: ahmedmh03.work@gmail.com
     
-    # Let's Encrypt staging server (for testing)
     server: https://acme-staging-v02.api.letsencrypt.org/directory
     
-    # Secret to store your ACME account private key
     privateKeySecretRef:
       name: letsencrypt-staging-account-key
     
-    # Solvers - how to prove domain ownership
     solvers:
     - dns01:
         route53:

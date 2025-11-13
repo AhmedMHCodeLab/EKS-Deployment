@@ -1,5 +1,3 @@
-# Root outputs to expose module outputs
-
 output "eks_oidc_provider_arn" {
   description = "OIDC provider ARN from EKS module"
   value       = module.eks.oidc_provider_arn
