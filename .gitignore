@@ -18,3 +18,10 @@ override.tf.json
 .terraformrc
 terraform.rc
 **/.terraform.lock.hcl
+
+# Terraform files
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars          # Add this
+!*.tfvars.example # But keep examples

@@ -8,20 +8,34 @@ on:
         required: true
 
 jobs:
-  terraform:
+  checkov-scan:
     if: github.event.inputs.confirm == 'CREATE'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
+      - name: Run Checkov IaC Security Scan
+        run: |
+          echo "Scanning Terraform for security issues..."
+          pip install checkov
+          checkov -d Terraform/ \
+            --skip-check CKV_AWS_38,CKV_AWS_39 \
+            --compact --quiet
+          echo "Checkov scan completed!"
+
+  terraform:
+    needs: checkov-scan
+    if: github.event.inputs.confirm == 'CREATE'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
       - uses: hashicorp/setup-terraform@v3
-      
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
-      
+
       - name: Apply Terraform
         run: |
           cd Terraform
@@ -33,13 +47,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
-      
       - uses: azure/setup-helm@v3
       
       - name: Update kubeconfig
@@ -123,28 +135,25 @@ jobs:
       - name: Display Access Information
         run: |
           echo ""
-          echo "═══════════════════════════════════════════════════════════"
-          echo "  🎉 INFRASTRUCTURE SETUP COMPLETE! 🎉"
+          echo "  INFRASTRUCTURE SETUP COMPLETE! "
           echo "═══════════════════════════════════════════════════════════"
           echo ""
-          echo "📋 CERTIFICATE STATUS:"
+          echo "CERTIFICATE STATUS:"
           kubectl get certificate -A || echo "Certificates still being issued..."
-          echo ""
-          echo "───────────────────────────────────────────────────────────"
-          echo "🌐 ACCESS URLs:"
+          echo ""          echo "🌐 ACCESS URLs:"
           echo "───────────────────────────────────────────────────────────"
           echo ""
-          echo "🎮 Game (2048):"
+          echo  Game (2048):"
           echo "   https://eks.ahmedmhcodelab.click"
           echo ""
-          echo "📊 ArgoCD (GitOps Dashboard):"
+          echo "ArgoCD (GitOps Dashboard):"
           echo "   URL:      https://argocd.ahmedmhcodelab.click"
           echo "   Username: admin"
           echo -n "   Password: "
           kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" 2>/dev/null | base64 -d || echo "Still starting..."
           echo ""
           echo ""
-          echo "📈 Grafana (Monitoring Dashboard):"
+          echo " Grafana (Monitoring Dashboard):"
           echo "   URL:      https://grafana.ahmedmhcodelab.click"
           echo "   Username: admin"
           echo -n "   Password: "
@@ -155,17 +164,3 @@ jobs:
           echo "   URL: https://prometheus.ahmedmhcodelab.click"
           echo "   (No authentication required)"
           echo ""
-          echo "───────────────────────────────────────────────────────────"
-          echo "⏰ IMPORTANT NOTES:"
-          echo "───────────────────────────────────────────────────────────"
-          echo "• Wait 2-3 minutes for all SSL certificates to be issued"
-          echo "• All services are accessible via HTTPS with valid certs"
-          echo "• ArgoCD will auto-deploy your application from Git"
-          echo ""
-          echo "💡 To check certificate status later, run:"
-          echo "   kubectl get certificate -A"
-          echo ""
-          echo "💡 To get credentials again, run:"
-          echo "   ./scripts/get-credentials.sh"
-          echo ""
-          echo "═══════════════════════════════════════════════════════════"

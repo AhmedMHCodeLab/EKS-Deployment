@@ -5,6 +5,8 @@ A production-ready Kubernetes cluster on AWS EKS with complete automation, GitOp
 ## Overview
 
 This project deploys a containerized 2048 game application on AWS EKS with:
+
+![2048 Game Application](meta/apple-touch-startup-image-640x1096.png)
 - ✅ Fully automated infrastructure deployment (~15 minutes)
 - ✅ GitOps with ArgoCD
 - ✅ Automatic SSL certificates (Let's Encrypt)
@@ -21,7 +23,7 @@ This project deploys a containerized 2048 game application on AWS EKS with:
 
 ## Architecture
 
-to be updated soon
+![EKS Architecture Diagram](meta/EKS%20Diagram.png)
 
 **Infrastructure:**
 - AWS EKS (Kubernetes 1.29)
@@ -94,6 +96,9 @@ EKS-Deployment/
 4. Kubernetes manifests updated
 5. ArgoCD detects changes and syncs cluster
 6. Rolling update applied to pods
+
+![ArgoCD Dashboard](meta/argocd.png)
+*ArgoCD automatically syncs and deploys application changes*
 
 ## Cleanup
 

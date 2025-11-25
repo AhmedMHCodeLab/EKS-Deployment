@@ -13,8 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Run Checkov scan
+
+      - name: Run Checkov scan (safety check for Terraform drift)
         uses: bridgecrewio/checkov-action@master
         with:
           directory: Terraform/
