@@ -1,4 +1,3 @@
-# GitHub OIDC Provider for AWS authentication
 resource "aws_iam_openid_connect_provider" "github_actions" {
   url             = "https://token.actions.githubusercontent.com"
   client_id_list  = ["sts.amazonaws.com"]
@@ -7,7 +6,6 @@ resource "aws_iam_openid_connect_provider" "github_actions" {
   tags = var.tags
 }
 
-# IAM Role for GitHub Actions
 resource "aws_iam_role" "github_actions" {
   name = "${var.project_name}-github-actions"
 
@@ -35,7 +33,6 @@ resource "aws_iam_role" "github_actions" {
   tags = var.tags
 }
 
-# Attach AdministratorAccess policy (for infrastructure deployment)
 # Note: In production, use a more restrictive policy
 resource "aws_iam_role_policy_attachment" "github_actions_admin" {
   role       = aws_iam_role.github_actions.name

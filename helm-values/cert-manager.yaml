@@ -1,7 +1,7 @@
 ---
 serviceAccount:
   create: true
-  annotations: {}  # ARN will be set via Helm --set flag in CI/CD
+  annotations: {} 
 
 resources:
   limits:
