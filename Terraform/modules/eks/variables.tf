@@ -98,8 +98,3 @@ variable "aws_account_id" {
   description = "AWS Account ID"
   type        = string
 }
-
-variable "oidc_provider_url" {
-  description = "OIDC provider URL (without https://)"
-  type        = string
-}

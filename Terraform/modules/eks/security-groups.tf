@@ -3,13 +3,10 @@ resource "aws_security_group" "cluster" {
   description = "Security group for EKS cluster control plane"
   vpc_id      = var.vpc_id
 
-  tags = merge(
-    {
-      Name = "${var.cluster_name}-cluster-sg"
-      Type = "EKS-Cluster"
-    },
-    var.tags
-  )
+  tags = merge({
+    "Name" = "${var.cluster_name}-cluster-sg"
+    "Type" = "EKS-Cluster"
+  }, var.tags)
 }
 
 resource "aws_security_group_rule" "cluster_ingress_nodes" {
@@ -37,14 +34,11 @@ resource "aws_security_group" "nodes" {
   description = "Security group for EKS worker nodes"
   vpc_id      = var.vpc_id
 
-  tags = merge(
-    {
-      Name                                        = "${var.cluster_name}-nodes-sg"
-      Type                                        = "EKS-Nodes"
-      "kubernetes.io/cluster/${var.cluster_name}" = "owned"
-    },
-    var.tags
-  )
+  tags = merge({
+    "Name"                                        = "${var.cluster_name}-nodes-sg"
+    "Type"                                        = "EKS-Nodes"
+    "kubernetes.io/cluster/${var.cluster_name}" = "owned"
+  }, var.tags)
 }
 
 resource "aws_security_group_rule" "nodes_ingress_self" {

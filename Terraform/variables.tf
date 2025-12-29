@@ -18,6 +18,12 @@ variable "owner" {
   type        = string
 }
 
+variable "github_repository" {
+  description = "GitHub repository in format 'owner/repo' for OIDC authentication"
+  type        = string
+  default     = "AhmedMHCodeLab/EKS-Deployment"
+}
+
 variable "aws_region" {
   description = "AWS region to deploy resources"
   type        = string
@@ -118,10 +124,5 @@ variable "node_disk_size" {
 
 variable "route53_zone_id" {
   description = "Route53 hosted zone ID"
-  type        = string
-}
-
-variable "oidc_provider_url" {
-  description = "OIDC provider URL (without https://)"
   type        = string
 }

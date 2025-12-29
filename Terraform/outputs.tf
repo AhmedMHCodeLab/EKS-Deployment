@@ -27,3 +27,8 @@ output "cluster_name" {
   description = "EKS cluster name"
   value       = module.eks.cluster_id
 }
+
+output "cluster_autoscaler_role_arn" {
+  description = "IAM role ARN for Cluster Autoscaler"
+  value       = module.eks.cluster_autoscaler_role_arn
+}

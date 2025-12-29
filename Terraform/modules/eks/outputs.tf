@@ -53,3 +53,22 @@ output "ebs_csi_driver_role_arn" {
   value       = module.ebs_csi_driver_irsa.iam_role_arn
 }
 
+output "ebs_csi_driver_addon_version" {
+  description = "Version of the EBS CSI driver addon"
+  value       = aws_eks_addon.ebs_csi_driver.addon_version
+}
+
+output "cluster_autoscaler_role_arn" {
+  description = "IAM role ARN for Cluster Autoscaler"
+  value       = module.cluster_autoscaler_irsa.iam_role_arn
+}
+
+output "kms_key_arn" {
+  description = "ARN of KMS key used for EKS secret encryption"
+  value       = aws_kms_key.eks.arn
+}
+
+output "kms_key_id" {
+  description = "ID of KMS key used for EKS secret encryption"
+  value       = aws_kms_key.eks.id
+}

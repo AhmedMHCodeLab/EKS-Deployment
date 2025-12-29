@@ -5,7 +5,6 @@ owner        = "AhmedMHCodeLab"
 aws_region         = "us-east-1"
 availability_zones = ["us-east-1a", "us-east-1b"]
 aws_account_id     = "590183934190"
-oidc_provider_url  = "oidc.eks.us-east-1.amazonaws.com/id/33A487785EF148ADBF7679E6DCE1BA77"
 
 vpc_cidr = "10.0.0.0/16"
 
