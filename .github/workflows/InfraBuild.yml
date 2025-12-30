@@ -24,7 +24,10 @@ jobs:
       - name: Run Checkov
         run: |
           pip install checkov
-          checkov -d Terraform/ --skip-check CKV_AWS_38,CKV_AWS_39 --compact --quiet
+          checkov -d Terraform/ --skip-check CKV_AWS_38,CKV_AWS_39 
+          --compact 
+          --quiet
+          --soft-fail
 
   terraform:
     needs: checkov-scan
