@@ -87,10 +87,12 @@ releases:
         value: {{ requiredEnv "AWS_REGION" }}
       - name: rbac.serviceAccount.create
         value: true
+      - name: rbac.serviceAccount.name
+        value: cluster-autoscaler
       - name: rbac.serviceAccount.annotations.eks\.amazonaws\.com/role-arn
         value: {{ requiredEnv "CLUSTER_AUTOSCALER_ROLE_ARN" }}
     wait: true
-    timeout: 180
+    timeout: 300
     atomic: true
     needs:
       - kube-system/metrics-server
