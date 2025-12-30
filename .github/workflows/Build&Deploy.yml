@@ -4,41 +4,26 @@ on:
   workflow_dispatch:
 
 permissions:
-  id-token: write   # Required for OIDC
-  contents: write   # Required for git push
-  security-events: write  # Required for Trivy SARIF upload
+  id-token: write
+  contents: write
+  security-events: write
 
 env:
   AWS_REGION: us-east-1
   ECR_REPO: eksdeployment-2048-game
-  EKS_CLUSTER: EKSDeployment-cluster
 
 jobs:
   checkov:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Run Checkov scan (safety check for Terraform drift)
+      - name: Run Checkov
         uses: bridgecrewio/checkov-action@master
         with:
           directory: Terraform/
           soft_fail: true
           output_format: cli
           skip_check: CKV_AWS_38,CKV_AWS_39,CKV_TF_1,CKV_AWS_382
-      
-      - name: Generate readable report
-        if: always()
-        run: |
-          pip install checkov
-          checkov -d Terraform/ --output cli --output json --output-file-path . --soft-fail
-      
-      - name: Upload security report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: checkov-security-report
-          path: results_cli.txt
 
   build:
     needs: checkov
@@ -47,12 +32,10 @@ jobs:
       image: ${{ steps.build.outputs.image }}
     steps:
       - uses: actions/checkout@v4
-      
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-      
       - uses: aws-actions/amazon-ecr-login@v2
         id: ecr
       
@@ -63,7 +46,7 @@ jobs:
           docker build -t $IMAGE .
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
       
-      - name: Scan image with Trivy
+      - name: Scan with Trivy
         uses: aquasecurity/trivy-action@0.33.1
         with:
           image-ref: ${{ steps.build.outputs.image }}
@@ -72,13 +55,13 @@ jobs:
           severity: CRITICAL,HIGH
           exit-code: 0
 
-      - name: Upload Trivy scan results
+      - name: Upload Trivy results
         if: always()
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'trivy-results.sarif'
 
-      - name: Push image to ECR
+      - name: Push to ECR
         run: docker push ${{ steps.build.outputs.image }}
 
   deploy:
@@ -89,19 +72,17 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Update image tag in deployment
+      - name: Update image tag
         run: |
-          sed -i "s|image:.*eksdeployment-2048-game:.*|image: ${{ needs.build.outputs.image }}|" k8s/deployment.yaml
+          sed -i "s|image:.*eksdeployment-2048-game:.*|image: ${{ needs.build.outputs.image }}|" k8s/applications/game-2048/deployment.yaml
 
-      - name: Commit and push changes
+      - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add k8s/deployment.yaml
-
+          git add k8s/applications/game-2048/deployment.yaml
+          
           if ! git diff --staged --quiet; then
             git commit -m "chore: update image to ${{ github.sha }} [skip ci]"
             git push
-          else
-            echo "No changes to commit"
           fi

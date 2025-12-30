@@ -21,19 +21,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Run Checkov IaC Security Scan
+      - name: Run Checkov
         run: |
-          echo "Scanning Terraform for security issues..."
           pip install checkov
-          checkov -d Terraform/ \
-            --skip-check CKV_AWS_38,CKV_AWS_39 \
-            --compact --quiet
-          echo "Checkov scan completed!"
+          checkov -d Terraform/ --skip-check CKV_AWS_38,CKV_AWS_39 --compact --quiet
 
   terraform:
     needs: checkov-scan
-    if: github.event.inputs.confirm == 'CREATE'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -41,15 +35,14 @@ jobs:
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-1
-
+          aws-region: ${{ env.AWS_REGION }}
       - name: Apply Terraform
         run: |
           cd Terraform
           terraform init -reconfigure
           terraform apply -auto-approve
 
-  install-addons:
+  bootstrap-gitops:
     needs: terraform
     runs-on: ubuntu-latest
     steps:
@@ -60,143 +53,56 @@ jobs:
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-1
+          aws-region: ${{ env.AWS_REGION }}
       - uses: azure/setup-helm@v3
       
-      - name: Update kubeconfig
-        run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER }} --region ${{ env.AWS_REGION }}
-      
-      - name: Install Core Infrastructure
+      - name: Install Helmfile
         run: |
-          echo "Extracting Terraform outputs..."
+          wget -qO- https://github.com/helmfile/helmfile/releases/download/v0.169.0/helmfile_0.169.0_linux_amd64.tar.gz | tar xz
+          sudo mv helmfile /usr/local/bin/
+
+      - name: Deploy platform components
+        run: |
+          aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER }} --region ${{ env.AWS_REGION }}
+          
           cd Terraform
           terraform init -reconfigure
-          CERT_MANAGER_ROLE_ARN=$(terraform output -raw cert_manager_role_arn)
-          EXTERNAL_DNS_ROLE_ARN=$(terraform output -raw external_dns_role_arn)
-          CLUSTER_AUTOSCALER_ROLE_ARN=$(terraform output -raw cluster_autoscaler_role_arn)
+          export CERT_MANAGER_ROLE_ARN=$(terraform output -raw cert_manager_role_arn)
+          export EXTERNAL_DNS_ROLE_ARN=$(terraform output -raw external_dns_role_arn)
+          export CLUSTER_AUTOSCALER_ROLE_ARN=$(terraform output -raw cluster_autoscaler_role_arn)
+          export EKS_CLUSTER=${{ env.EKS_CLUSTER }}
+          export AWS_REGION=${{ env.AWS_REGION }}
           cd ..
+          
+          helmfile sync
 
-          echo "Adding Helm repositories..."
-          helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
-          helm repo add jetstack https://charts.jetstack.io
-          helm repo add external-dns https://kubernetes-sigs.github.io/external-dns/
-          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-          helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/
-          helm repo add autoscaler https://kubernetes.github.io/autoscaler
-          helm repo update
-
-          echo "Installing NGINX Ingress Controller..."
-          helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
-            -n ingress-nginx --create-namespace \
-            -f helm-values/nginx-ingress.yaml \
-            --wait --timeout 5m
-
-          echo "Installing Cert-Manager..."
-          helm upgrade --install cert-manager jetstack/cert-manager \
-            -n cert-manager --create-namespace \
-            --set crds.enabled=true \
-            -f helm-values/cert-manager.yaml \
-            --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="${CERT_MANAGER_ROLE_ARN}" \
-            --wait --timeout 5m
-
-          echo "Installing ExternalDNS..."
-          helm upgrade --install external-dns external-dns/external-dns \
-            -n external-dns --create-namespace \
-            -f helm-values/external-dns.yaml \
-            --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="${EXTERNAL_DNS_ROLE_ARN}" \
-            --wait --timeout 5m
-
-          echo "Installing Metrics Server..."
-          helm upgrade --install metrics-server metrics-server/metrics-server \
-            -n kube-system \
-            --set args[0]=--kubelet-insecure-tls \
-            --wait --timeout 3m
-
-          echo "Installing Cluster Autoscaler..."
-          helm upgrade --install cluster-autoscaler autoscaler/cluster-autoscaler \
-            -n kube-system \
-            --set autoDiscovery.clusterName=${{ env.EKS_CLUSTER }} \
-            --set awsRegion=${{ env.AWS_REGION }} \
-            --set rbac.serviceAccount.create=true \
-            --set rbac.serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="${CLUSTER_AUTOSCALER_ROLE_ARN}" \
-            --wait --timeout 3m
-
-      - name: Apply ClusterIssuer
+      - name: Bootstrap GitOps
         run: |
-          echo "Applying Let's Encrypt ClusterIssuer..."
-          kubectl apply -f k8s/cluster-issuer-prod.yaml
-          sleep 10
-      
-      - name: Install Monitoring Stack
-        run: |
-          echo "Installing Prometheus + Grafana..."
-          helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
-            -n monitoring --create-namespace \
-            --wait --timeout 10m
+          kubectl wait --for=condition=available deployment/argocd-server -n argocd --timeout=600s
           
-          echo "Monitoring stack installed successfully!"
-      
-      - name: Install ArgoCD
-        run: |
-          echo "Installing ArgoCD..."
-          kubectl create namespace argocd || true
-          kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+          kubectl apply -f k8s/bootstrap/cluster-issuer.yaml
+          sleep 15
           
-          echo "Waiting for ArgoCD to be ready..."
-          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=argocd-server -n argocd --timeout=5m || true
+          kubectl wait --for=condition=ready certificate -n cert-manager letsencrypt-prod-account-key --timeout=60s || true
           
-          echo "ArgoCD installed successfully!"
-      
-      - name: Configure Ingresses
-        run: |
-          echo "Applying ArgoCD ingress..."
-          kubectl apply -f argocd-apps/argocd-ingress.yaml
+          kubectl apply -f k8s/bootstrap/argocd-apps.yaml
+          sleep 30
           
-          echo "Applying Grafana ingress..."
-          kubectl apply -f k8s/grafana-ingress.yaml
+          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=argocd-application-controller -n argocd --timeout=300s
           
-          echo "Applying Prometheus ingress..."
-          kubectl apply -f k8s/prometheus-ingress.yaml
-          
-          echo "Waiting for certificate issuance (60 seconds)..."
           sleep 60
-      
-      - name: Create ArgoCD Application
+
+      - name: Display status
         run: |
-          echo "Creating ArgoCD application for game-2048..."
-          kubectl apply -f argocd-apps/game-2048-app.yaml
+          kubectl get applications -n argocd
+          kubectl get certificate -A
+          kubectl get ingress -A
           
-          echo "ArgoCD application created!"
-      
-      - name: Display Access Information
-        run: |
           echo ""
-          echo "  INFRASTRUCTURE SETUP COMPLETE! "
-          echo "═══════════════════════════════════════════════════════════"
-          echo ""
-          echo "CERTIFICATE STATUS:"
-          kubectl get certificate -A || echo "Certificates still being issued..."
-          echo ""          echo "🌐 ACCESS URLs:"
-          echo "───────────────────────────────────────────────────────────"
-          echo ""
-          echo  Game (2048):"
-          echo "   https://eks.ahmedmhcodelab.click"
-          echo ""
-          echo "ArgoCD (GitOps Dashboard):"
-          echo "   URL:      https://argocd.ahmedmhcodelab.click"
-          echo "   Username: admin"
-          echo -n "   Password: "
-          kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" 2>/dev/null | base64 -d || echo "Still starting..."
+          echo "ArgoCD Password:"
+          kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
           echo ""
           echo ""
-          echo " Grafana (Monitoring Dashboard):"
-          echo "   URL:      https://grafana.ahmedmhcodelab.click"
-          echo "   Username: admin"
-          echo -n "   Password: "
-          kubectl get secret -n monitoring prometheus-grafana -o jsonpath="{.data.admin-password}" 2>/dev/null | base64 -d || echo "Still starting..."
-          echo ""
-          echo ""
-          echo "🔍 Prometheus (Metrics):"
-          echo "   URL: https://prometheus.ahmedmhcodelab.click"
-          echo "   (No authentication required)"
+          echo "Grafana Password:"
+          kubectl get secret -n monitoring prometheus-grafana -o jsonpath="{.data.admin-password}" | base64 -d
           echo ""

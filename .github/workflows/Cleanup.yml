@@ -8,8 +8,8 @@ on:
         required: true
 
 permissions:
-  id-token: write   # Required for OIDC
-  contents: read    # Required for checkout
+  id-token: write
+  contents: read
 
 env:
   AWS_REGION: us-east-1
@@ -21,154 +21,57 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-      
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
       - uses: azure/setup-helm@v3
-      
-      - name: Update kubeconfig
-        run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER }} --region ${{ env.AWS_REGION }}
-      
-      - name: Delete application resources
+
+      - name: Install Helmfile
         run: |
-          kubectl delete -f k8s/deployment.yaml -n default || true
-          kubectl delete -f k8s/service.yaml -n default || true
-          kubectl delete -f k8s/ingress.yaml -n default || true
-      
-      - name: Delete monitoring ingresses first
+          wget -qO- https://github.com/helmfile/helmfile/releases/download/v0.169.0/helmfile_0.169.0_linux_amd64.tar.gz | tar xz
+          sudo mv helmfile /usr/local/bin/
+
+      - name: Delete ArgoCD-managed resources
         run: |
-          kubectl delete ingress --all -n monitoring || true
-          kubectl delete ingress --all -n argocd || true
+          aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER }} --region ${{ env.AWS_REGION }}
+          
+          kubectl delete application game-2048 -n argocd --ignore-not-found --wait=true --timeout=120s || true
+          kubectl delete application platform -n argocd --ignore-not-found --wait=true --timeout=120s || true
+          
           sleep 30
-      
-      - name: Delete all certificates
+          
+          kubectl delete namespace default --ignore-not-found --wait=false || true
+          kubectl delete ingress --all -A --ignore-not-found || true
+          kubectl delete certificate --all -A --ignore-not-found || true
+          
+          sleep 30
+
+      - name: Destroy platform components
         run: |
-          kubectl delete certificate --all -A || true
-          kubectl delete clusterissuer --all || true
-          sleep 10
-      
-      - name: Uninstall Helm releases (NGINX last)
-        run: |
-          helm uninstall prometheus -n monitoring || true
-          helm uninstall external-dns -n external-dns || true
-          helm uninstall cert-manager -n cert-manager || true
-          sleep 60
-          helm uninstall ingress-nginx -n ingress-nginx || true
+          cd Terraform
+          terraform init -reconfigure
+          export CERT_MANAGER_ROLE_ARN=$(terraform output -raw cert_manager_role_arn || echo "")
+          export EXTERNAL_DNS_ROLE_ARN=$(terraform output -raw external_dns_role_arn || echo "")
+          export CLUSTER_AUTOSCALER_ROLE_ARN=$(terraform output -raw cluster_autoscaler_role_arn || echo "")
+          export EKS_CLUSTER=${{ env.EKS_CLUSTER }}
+          export AWS_REGION=${{ env.AWS_REGION }}
+          cd ..
+          
+          helmfile destroy || true
           sleep 120
-      
-      - name: Force delete LoadBalancer services
+
+      - name: Force cleanup remaining resources
         run: |
-          kubectl delete svc --all -n ingress-nginx || true
-          kubectl patch svc ingress-nginx-controller -n ingress-nginx -p '{"metadata":{"finalizers":[]}}' --type=merge || true
-          sleep 90
-      
-      - name: Delete ArgoCD
-        run: |
-          kubectl delete -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml || true
-          sleep 30
-      
-      - name: Force delete stuck namespaces
-        run: |
-          for ns in monitoring cert-manager external-dns ingress-nginx argocd; do
-            kubectl delete namespace $ns --grace-period=0 --force || true
-            kubectl get namespace $ns -o json 2>/dev/null | jq '.spec.finalizers=[]' | kubectl replace --raw /api/v1/namespaces/$ns/finalize -f - || true
-          done
-      
-      - name: Delete orphaned PVCs and PVs
-        run: |
-          kubectl delete pvc --all -A || true
-          kubectl delete pv --all || true
-          sleep 30
-      
-      - name: Verify LoadBalancers deleted
-        run: |
-          echo "Checking for remaining LoadBalancers..."
-          aws elb describe-load-balancers --region ${{ env.AWS_REGION }} --query "LoadBalancerDescriptions[?contains(LoadBalancerName, 'EKS')].LoadBalancerName" || true
-          aws elbv2 describe-load-balancers --region ${{ env.AWS_REGION }} --query "LoadBalancers[?contains(LoadBalancerName, 'EKS')].LoadBalancerArn" || true
-      
-      - name: Force delete LoadBalancers if any remain
-        run: |
-          for lb in $(aws elbv2 describe-load-balancers --region ${{ env.AWS_REGION }} --query "LoadBalancers[?VpcId && contains(LoadBalancerName, 'k8s')].LoadBalancerArn" --output text); do
-            echo "Force deleting NLB: $lb"
+          for lb in $(aws elbv2 describe-load-balancers --region ${{ env.AWS_REGION }} --query "LoadBalancers[?contains(LoadBalancerName, 'k8s')].LoadBalancerArn" --output text); do
             aws elbv2 delete-load-balancer --load-balancer-arn $lb --region ${{ env.AWS_REGION }} || true
           done
           sleep 60
-      
-      - uses: hashicorp/setup-terraform@v3
-      
-      - name: Destroy Terraform infrastructure
+
+      - name: Destroy infrastructure
         run: |
           cd Terraform
-          terraform init
-          terraform destroy -auto-approve
-        continue-on-error: true
-      
-      - name: Retry Terraform destroy if failed
-        if: failure()
-        run: |
-          cd Terraform
-          sleep 60
-          terraform destroy -auto-approve
-      
-      - name: Clean up orphaned AWS resources
-        run: |
-          VPC_ID=$(aws ec2 describe-vpcs --filters "Name=tag:Name,Values=EKSDeployment-vpc" --query "Vpcs[0].VpcId" --output text --region ${{ env.AWS_REGION }})
-          
-          if [ "$VPC_ID" != "None" ] && [ ! -z "$VPC_ID" ]; then
-            echo "Found orphaned VPC: $VPC_ID"
-
-            for lb in $(aws elbv2 describe-load-balancers --query "LoadBalancers[?VpcId=='$VPC_ID'].LoadBalancerArn" --output text --region ${{ env.AWS_REGION }}); do
-              aws elbv2 delete-load-balancer --load-balancer-arn $lb --region ${{ env.AWS_REGION }} || true
-            done
-
-            sleep 60
-
-            for sg in $(aws ec2 describe-security-groups --filters "Name=vpc-id,Values=$VPC_ID" --query "SecurityGroups[?GroupName!='default'].GroupId" --output text --region ${{ env.AWS_REGION }}); do
-              aws ec2 delete-security-group --group-id $sg --region ${{ env.AWS_REGION }} || true
-            done
-          fi
-      
-      - name: Clean ECR images
-        run: |
-          aws ecr batch-delete-image \
-            --repository-name eksdeployment-2048-game \
-            --image-ids "$(aws ecr list-images --repository-name eksdeployment-2048-game --query 'imageIds[*]' --output json --region ${{ env.AWS_REGION }})" \
-            --region ${{ env.AWS_REGION }} || true
-      
-      - name: Clean Route53 records
-        run: |
-          HOSTED_ZONE_ID="Z05803441P04TCJ0P5ELV"
-
-          aws route53 list-resource-record-sets \
-            --hosted-zone-id $HOSTED_ZONE_ID \
-            --query "ResourceRecordSets[?Type=='TXT' && contains(ResourceRecords[0].Value, 'heritage=external-dns')]" \
-            --region ${{ env.AWS_REGION }} || true
-
-          for subdomain in eks argocd grafana prometheus; do
-            aws route53 change-resource-record-sets \
-              --hosted-zone-id $HOSTED_ZONE_ID \
-              --change-batch '{
-                "Changes": [{
-                  "Action": "DELETE",
-                  "ResourceRecordSet": {
-                    "Name": "'$subdomain'.ahmedmhcodelab.click",
-                    "Type": "A"
-                  }
-                }]
-              }' --region ${{ env.AWS_REGION }} 2>/dev/null || true
-          done
-      
-      - name: Final verification
-        run: |
-          echo "=== Cleanup Summary ==="
-          echo "Remaining EKS clusters:"
-          aws eks list-clusters --region ${{ env.AWS_REGION }} || true
-          
-          echo "Remaining Load Balancers:"
-          aws elbv2 describe-load-balancers --region ${{ env.AWS_REGION }} --query "LoadBalancers[].LoadBalancerName" || true
-          
-          echo "Remaining VPCs with EKSDeployment tag:"
-          aws ec2 describe-vpcs --filters "Name=tag:Project,Values=EKSDeployment" --query "Vpcs[].VpcId" --region ${{ env.AWS_REGION }} || true
+          terraform destroy -auto-approve || (sleep 60 && terraform destroy -auto-approve)
